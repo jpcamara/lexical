@@ -16,6 +16,7 @@ overrides:
   onnxruntime-node: link:./stubs/empty
   sharp: link:./stubs/empty
   yjs: ^13.6.31
+  serialize-javascript: '>=7.0.5'
 
 importers:
 
@@ -10790,9 +10791,6 @@ packages:
   raf-schd@4.0.3:
     resolution: {integrity: sha512-tQkJl2GRWh83ui2DiPTJz9wEiMN20syf+5oKfB03yYP7ioZcJwsIK8FjrtLwH1m7C7e+Tt2yYBlrOpdT+dyeIQ==}
 
-  randombytes@2.1.0:
-    resolution: {integrity: sha512-vYl3iOX+4CKUWuxGi9Ukhie6fsqXqS9FE2Zaic4tNFD2N2QQaXOMFbuKK4QmDHC0JO6B1Zp41J0LpT0oR68amQ==}
-
   range-parser@1.2.0:
     resolution: {integrity: sha512-kA5WQoNVo4t9lNx2kQNFCxKeBl5IbbSNBl1M/tLkw9WCn+hxNBAW5Qh8gdhs63CJnhjJ2zQWFoqPJP2sK1AV5A==}
     engines: {node: '>= 0.6'}
@@ -11273,11 +11271,8 @@ packages:
     resolution: {integrity: sha512-6uZQLGyUkNA4N+Zii9fYukmNu9PEA1F5rqcwXzN/3LtBjwl2dFBbVZ1Zyn08/CGkB4H440PIemdOQBt1Wvjbrg==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
-  serialize-javascript@6.0.2:
-    resolution: {integrity: sha512-Saa1xPByTTq2gdeFZYLLo+RFE35NHZkAbqZeWNd3BpzppeVisAqpDjcp8dyf6uIvEqJRd46jemmyA4iFIeVk8g==}
-
-  serialize-javascript@7.0.4:
-    resolution: {integrity: sha512-DuGdB+Po43Q5Jxwpzt1lhyFSYKryqoNjQSA9M92tyw0lyHIOur+XCalOUe0KTJpyqzT8+fQ5A0Jf7vCx/NKmIg==}
+  serialize-javascript@7.0.7:
+    resolution: {integrity: sha512-YAy8Od6KV+uuwUuU50np8fGB/Aues6Y0nAhA9y/hId74PlKUcme4pXcBD46NWKr1Q4osN/iseZ17YqO1XfmI8g==}
     engines: {node: '>=20.0.0'}
 
   serve-handler@6.1.7:
@@ -17285,7 +17280,7 @@ snapshots:
 
   '@rollup/plugin-terser@1.0.0(rollup@4.61.0)':
     dependencies:
-      serialize-javascript: 7.0.4
+      serialize-javascript: 7.0.7
       smob: 1.4.1
       terser: 5.44.0
     optionalDependencies:
@@ -20102,7 +20097,7 @@ snapshots:
       globby: 13.2.2
       normalize-path: 3.0.0
       schema-utils: 4.3.3
-      serialize-javascript: 6.0.2
+      serialize-javascript: 7.0.7
       webpack: 5.107.2(@swc/core@1.15.24(@swc/helpers@0.5.21))(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.15))(esbuild@0.27.7)(html-minifier-terser@7.2.0)(postcss@8.5.15)
 
   copy-webpack-plugin@11.0.0(webpack@5.107.2(esbuild@0.27.7)):
@@ -20112,7 +20107,7 @@ snapshots:
       globby: 13.2.2
       normalize-path: 3.0.0
       schema-utils: 4.3.3
-      serialize-javascript: 6.0.2
+      serialize-javascript: 7.0.7
       webpack: 5.107.2(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.15))(esbuild@0.27.7)(html-minifier-terser@7.2.0)(postcss@8.5.15)
 
   core-js-compat@3.49.0:
@@ -20229,7 +20224,7 @@ snapshots:
       jest-worker: 29.7.0
       postcss: 8.5.15
       schema-utils: 4.3.3
-      serialize-javascript: 6.0.2
+      serialize-javascript: 7.0.7
       webpack: 5.107.2(@swc/core@1.15.24(@swc/helpers@0.5.21))(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.15))(esbuild@0.27.7)(html-minifier-terser@7.2.0)(postcss@8.5.15)
     optionalDependencies:
       clean-css: 5.3.3
@@ -20242,7 +20237,7 @@ snapshots:
       jest-worker: 29.7.0
       postcss: 8.5.15
       schema-utils: 4.3.3
-      serialize-javascript: 6.0.2
+      serialize-javascript: 7.0.7
       webpack: 5.107.2(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.15))(esbuild@0.27.7)(html-minifier-terser@7.2.0)(postcss@8.5.15)
     optionalDependencies:
       clean-css: 5.3.3
@@ -24957,10 +24952,6 @@ snapshots:
 
   raf-schd@4.0.3: {}
 
-  randombytes@2.1.0:
-    dependencies:
-      safe-buffer: 5.2.1
-
   range-parser@1.2.0: {}
 
   range-parser@1.2.1: {}
@@ -25603,11 +25594,7 @@ snapshots:
     dependencies:
       type-fest: 2.19.0
 
-  serialize-javascript@6.0.2:
-    dependencies:
-      randombytes: 2.1.0
-
-  serialize-javascript@7.0.4: {}
+  serialize-javascript@7.0.7: {}
 
   serve-handler@6.1.7:
     dependencies:

@@ -227,7 +227,8 @@
       "webpack-dev-server": ">=5.2.4",
       "onnxruntime-node": "link:./stubs/empty",
       "sharp": "link:./stubs/empty",
-      "yjs": "$yjs"
+      "yjs": "$yjs",
+      "serialize-javascript": ">=7.0.5"
     }
   }
 }

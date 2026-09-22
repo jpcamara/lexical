@@ -7,11 +7,12 @@
  */
 
 import type {Binding} from '.';
-import type {AbstractType, Map as YMap, XmlElement, XmlText} from 'yjs';
+import type {AbstractType, XmlElement, XmlText} from 'yjs';
 
 import invariant from '@lexical/internal/invariant';
 import {
   $createChildrenArray,
+  $createTextNode,
   $getNodeByKey,
   $getNodeByKeyOrThrow,
   $isDecoratorNode,
@@ -22,6 +23,7 @@ import {
   type NodeKey,
   type NodeMap,
 } from 'lexical';
+import {Map as YMap} from 'yjs';
 
 import {CollabDecoratorNode} from './CollabDecoratorNode';
 import {CollabLineBreakNode} from './CollabLineBreakNode';
@@ -35,12 +37,57 @@ import {
   $syncSlotsFromYjsShared,
   createLexicalNodeFromCollabNode,
   getNodeTypeFromSharedType,
-  getPositionFromElementAndOffset,
-  spliceString,
   syncPropertiesFromLexical,
 } from './Utils';
 
 type IntentionallyMarkedAsDirtyElement = boolean;
+
+type ChildrenDelta = {
+  insert?: string | object | AbstractType<unknown>;
+  delete?: number;
+  retain?: number;
+  attributes?: {[key: string]: unknown};
+};
+
+// Locate a removed metadata embed whose characters survived. Offsets are in
+// the resulting shared value, so each repaired run retains its own properties
+// and NodeState, including when it follows a linebreak or another non-text node.
+function getSurvivingTextSources(
+  children: CollabElementNode['_children'],
+  deltas: ChildrenDelta[],
+): Map<number, CollabTextNode> {
+  const ranges: {start: number; end: number; child: CollabTextNode}[] = [];
+  let end = 0;
+  for (const child of children) {
+    const start = end;
+    end += child.getSize();
+    if (child instanceof CollabTextNode) ranges.push({child, end, start});
+  }
+  const sources = new Map<number, CollabTextNode>();
+  let before = 0;
+  let after = 0;
+  for (const delta of deltas) {
+    if (delta.retain !== undefined) {
+      before += delta.retain;
+      after += delta.retain;
+    } else if (delta.delete !== undefined) {
+      const deletionEnd = before + delta.delete;
+      for (const range of ranges) {
+        if (
+          range.start >= before &&
+          range.start < deletionEnd &&
+          range.end > deletionEnd
+        ) {
+          sources.set(after, range.child);
+        }
+      }
+      before = deletionEnd;
+    } else if (delta.insert !== undefined) {
+      after += typeof delta.insert === 'string' ? delta.insert.length : 1;
+    }
+  }
+  return sources;
+}
 
 export class CollabElementNode {
   _key: NodeKey;
@@ -127,152 +174,72 @@ export class CollabElementNode {
     $syncPropertiesFromYjs(binding, this._xmlText, lexicalNode, keysChanged);
   }
 
-  applyChildrenYjsDelta(
-    binding: Binding,
-    deltas: {
-      insert?: string | object | AbstractType<unknown>;
-      delete?: number;
-      retain?: number;
-      attributes?: {
-        [x: string]: unknown;
-      };
-    }[],
-  ): void {
-    const children = this._children;
-    let currIndex = 0;
-    let pendingSplitText = null;
-
-    for (let i = 0; i < deltas.length; i++) {
-      const delta = deltas[i];
-      const insertDelta = delta.insert;
-      const deleteDelta = delta.delete;
-
-      if (delta.retain != null) {
-        currIndex += delta.retain;
-      } else if (typeof deleteDelta === 'number') {
-        let deletionSize = deleteDelta;
-
-        while (deletionSize > 0) {
-          const {node, nodeIndex, offset, length} =
-            getPositionFromElementAndOffset(this, currIndex, false);
-
-          if (
-            node instanceof CollabElementNode ||
-            node instanceof CollabLineBreakNode ||
-            node instanceof CollabDecoratorNode
-          ) {
-            children.splice(nodeIndex, 1);
-            deletionSize -= 1;
-          } else if (node instanceof CollabTextNode) {
-            const delCount = Math.min(deletionSize, length);
-            const prevCollabNode =
-              nodeIndex !== 0 ? children[nodeIndex - 1] : null;
-            const nodeSize = node.getSize();
-
-            if (offset === 0 && length === nodeSize) {
-              // Text node has been deleted.
-              children.splice(nodeIndex, 1);
-              // If this was caused by an undo from YJS, there could be dangling text.
-              const danglingText = spliceString(
-                node._text,
-                offset,
-                delCount - 1,
-                '',
-              );
-              if (danglingText.length > 0) {
-                if (prevCollabNode instanceof CollabTextNode) {
-                  // Merge the text node with previous.
-                  prevCollabNode._text += danglingText;
-                } else {
-                  // No previous text node to merge into, just delete the text.
-                  this._xmlText.delete(offset, danglingText.length);
-                }
-              }
-            } else {
-              node._text = spliceString(node._text, offset, delCount, '');
-            }
-
-            deletionSize -= delCount;
-          } else {
-            // Can occur due to the deletion from the dangling text heuristic below.
-            break;
-          }
+  applyChildrenYjsDelta(binding: Binding, deltas: ChildrenDelta[]): void {
+    // Metadata embeds delimit text runs in the v1 format. A normalization
+    // can remove an embed before its surviving predecessor arrives. Rebuild
+    // from the shared value so cached text from an earlier local merge cannot
+    // be replayed twice, and never delete characters to repair missing metadata.
+    const sources = getSurvivingTextSources(this._children, deltas);
+    const children: CollabElementNode['_children'] = [];
+    let textNode: CollabTextNode | null = null;
+    let offset = 0;
+    let added = 0;
+    for (const {insert} of this._xmlText.toDelta()) {
+      if (typeof insert === 'string') {
+        if (textNode === null && insert.length > 0) {
+          const sourceCollab = sources.get(offset);
+          const source =
+            sourceCollab === undefined ? null : sourceCollab.getNode();
+          const lexicalNode = source || $createTextNode();
+          const map = new YMap<unknown>();
+          syncPropertiesFromLexical(binding, map, null, lexicalNode);
+          // Peers that already have the predecessor must keep this boundary:
+          // immediately normalizing it away causes an endless repair/cleanup
+          // exchange with peers that are still waiting for that predecessor.
+          const unmergeable = $createTextNode().toggleUnmergeable().getDetail();
+          map.set('__detail', lexicalNode.getDetail() | unmergeable);
+          binding.doc.transact(() => {
+            this._xmlText.insertEmbed(offset + added, map);
+          }, binding);
+          added++;
+          const repaired = $getOrInitCollabNodeFromSharedType(
+            binding,
+            map,
+            this,
+          );
+          invariant(
+            repaired instanceof CollabTextNode,
+            'Expected repaired text node',
+          );
+          textNode = repaired;
+          children.push(textNode);
         }
-      } else if (insertDelta != null) {
-        if (typeof insertDelta === 'string') {
-          const {node, offset} = getPositionFromElementAndOffset(
-            this,
-            currIndex,
-            true,
-          );
-
-          if (node instanceof CollabTextNode) {
-            node._text = spliceString(node._text, offset, 0, insertDelta);
-          } else {
-            // TODO: maybe we can improve this by keeping around a redundant
-            // text node map, rather than removing all the text nodes, so there
-            // never can be dangling text.
-
-            // We have a conflict where there was likely a CollabTextNode and
-            // an Lexical TextNode too, but they were removed in a merge. So
-            // let's just ignore the text and trigger a removal for it from our
-            // shared type.
-            this._xmlText.delete(offset, insertDelta.length);
-          }
-
-          currIndex += insertDelta.length;
-        } else {
-          const sharedType = insertDelta as
-            | XmlText
-            | YMap<unknown>
-            | XmlElement;
-          // A delta can reference a shared type that has already been deleted
-          // (e.g. while reconciling an undo against concurrent remote edits). A
-          // deleted type has no `__type` and must not be materialized into the
-          // collab tree; it carries no live content, so skip it entirely.
-          if (getNodeTypeFromSharedType(sharedType) === undefined) {
-            continue;
-          }
-          const {node, nodeIndex, length} = getPositionFromElementAndOffset(
-            this,
-            currIndex,
-            false,
-          );
-          const collabNode = $getOrInitCollabNodeFromSharedType(
+        if (textNode !== null) {
+          textNode._text += insert;
+        }
+        offset += insert.length;
+      } else if (insert !== undefined) {
+        const sharedType = insert as XmlText | YMap<unknown> | XmlElement;
+        // A type already deleted by a concurrent undo has no live metadata.
+        if (getNodeTypeFromSharedType(sharedType) !== undefined) {
+          const child = $getOrInitCollabNodeFromSharedType(
             binding,
             sharedType,
             this,
           );
-          if (
-            node instanceof CollabTextNode &&
-            length > 0 &&
-            length < node._text.length
-          ) {
-            // Trying to insert in the middle of a text node; split the text.
-            const text = node._text;
-            const splitIdx = text.length - length;
-            node._text = spliceString(text, splitIdx, length, '');
-            children.splice(nodeIndex + 1, 0, collabNode);
-            // The insert that triggers the text split might not be a text node. Need to keep a
-            // reference to the remaining text so that it can be added when we do create one.
-            pendingSplitText = spliceString(text, 0, splitIdx, '');
-          } else {
-            children.splice(nodeIndex, 0, collabNode);
+          children.push(child);
+          textNode = child instanceof CollabTextNode ? child : null;
+          if (textNode !== null) {
+            textNode._text = '';
+            textNode._normalized = false;
           }
-          if (
-            pendingSplitText !== null &&
-            collabNode instanceof CollabTextNode
-          ) {
-            // Found a text node to insert the pending text into.
-            collabNode._text = pendingSplitText + collabNode._text;
-            pendingSplitText = null;
-          }
-          currIndex += 1;
+        } else {
+          textNode = null;
         }
-      } else {
-        throw new Error('Unexpected delta format');
+        offset++;
       }
     }
+    this._children = children;
   }
 
   syncChildrenFromYjs(binding: Binding): void {

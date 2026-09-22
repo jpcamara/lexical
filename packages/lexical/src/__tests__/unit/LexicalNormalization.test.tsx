@@ -13,7 +13,10 @@ import {
 } from 'lexical';
 import {describe, expect, test} from 'vitest';
 
-import {$normalizeSelection} from '../../LexicalNormalization';
+import {
+  $normalizeSelection,
+  $normalizeTextNode,
+} from '../../LexicalNormalization';
 import {
   $createTestDecoratorNode,
   $createTestElementNode,
@@ -22,6 +25,41 @@ import {
 
 describe('LexicalNormalization tests', () => {
   initializeUnitTest(testEnv => {
+    test.each(['self', 'previous', 'next'])(
+      'reports an empty %s text node removed by normalization',
+      position => {
+        const {editor} = testEnv;
+        let removedKey = '';
+        let normalized = new Set<string>();
+        const unregister = editor.registerUpdateListener(
+          ({normalizedNodes}) => {
+            normalized = new Set(normalizedNodes);
+          },
+        );
+        try {
+          editor.update(
+            () => {
+              const paragraph = $createParagraphNode();
+              const empty = $createTextNode();
+              const text = $createTextNode('keep');
+              removedKey = empty.getKey();
+              $getRoot().append(paragraph);
+              if (position === 'previous') paragraph.append(empty, text);
+              else paragraph.append(text, empty);
+              $normalizeTextNode(position === 'self' ? empty : text);
+            },
+            {discrete: true},
+          );
+          expect(normalized.has(removedKey)).toBe(true);
+          // The new empty node is already absent from the committed map and
+          // dirty leaves; normalizedNodes is how bindings can clean its metadata.
+          expect(editor.getEditorState()._nodeMap.has(removedKey)).toBe(false);
+        } finally {
+          unregister();
+        }
+      },
+    );
+
     describe('$normalizeSelection', () => {
       for (const reversed of [false, true]) {
         const getAnchor = (x: RangeSelection) =>

@@ -51,6 +51,8 @@ export class CollabTextNode {
   _text: string;
   _type: string;
   _normalized: boolean;
+  // True when this peer created the header to repair text that had none.
+  _repaired: boolean;
 
   constructor(
     map: YMap<unknown>,
@@ -64,6 +66,7 @@ export class CollabTextNode {
     this._text = text;
     this._type = type;
     this._normalized = false;
+    this._repaired = false;
   }
 
   getPrevNode(nodeMap: null | NodeMap): null | TextNode {

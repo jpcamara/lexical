@@ -327,22 +327,11 @@ describe('Collaboration', () => {
           client1.connect();
         });
 
-        if (useCollabV2) {
-          expect(client1.getHTML()).toEqual(
-            '<p dir="auto"><span data-lexical-text="true">Hello world</span></p>',
-          );
-        } else {
-          // TODO we can probably handle these conflicts better. We could keep around
-          // a "fallback" {Map} when we remove text without any adjacent text nodes. This
-          // would require big changes in `CollabElementNode.splice` and also need adjustments
-          // in `CollabElementNode.applyChildrenYjsDelta` to handle the existence of these
-          // fallback maps. For now though, if a user clears all text nodes from an element
-          // and another user inserts some text into the same element at the same time, the
-          // deletion will take precedence on conflicts.
-          expect(client1.getHTML()).toEqual(
-            '<p dir="auto"><br data-lexical-managed-linebreak="true"></p>',
-          );
-        }
+        // Removing the old text must not delete the other client's concurrent
+        // insertion, even when the v1 metadata header was removed with it.
+        expect(client1.getHTML()).toEqual(
+          '<p dir="auto"><span data-lexical-text="true">Hello world</span></p>',
+        );
         expect(client1.getHTML()).toEqual(client2.getHTML());
         expect(client1.getDocJSON()).toEqual(client2.getDocJSON());
         client1.stop();

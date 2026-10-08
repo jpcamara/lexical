@@ -48,6 +48,7 @@ It's achievable by leveraging headless Lexical and no-op provider for Yjs:
   import {createHeadlessEditor} from '@lexical/headless';
   import {
     createBinding,
+    registerCollabTextInsertion,
     syncLexicalUpdateToYjs,
     syncYjsChangesToLexical,
   } from '@lexical/yjs';
@@ -130,9 +131,14 @@ It's achievable by leveraging headless Lexical and no-op provider for Yjs:
 
     binding.root.getSharedType().observeDeep(observer);
 
+    // Typing at an element caret beside shared text continues that text
+    // instead of creating a new node, so its Yjs identity is preserved.
+    const unregisterTextInsertion = registerCollabTextInsertion(editor);
+
     return () => {
       unsubscribeUpdateListener();
       binding.root.getSharedType().unobserveDeep(observer);
+      unregisterTextInsertion();
     };
   }
 

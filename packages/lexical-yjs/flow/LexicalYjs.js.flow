@@ -449,6 +449,10 @@ declare export function syncYjsChangesToLexical(
   events: YjsEvent[],
 ): void;
 
+declare export function registerCollabTextInsertion(
+  editor: LexicalEditor,
+): () => void;
+
 declare export var CONNECTED_COMMAND: LexicalCommand<boolean>;
 declare export var TOGGLE_CONNECT_COMMAND: LexicalCommand<boolean>;
 

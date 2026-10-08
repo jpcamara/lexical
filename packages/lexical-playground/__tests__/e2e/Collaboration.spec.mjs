@@ -221,7 +221,8 @@ test.describe('Collaboration', () => {
     });
   });
 
-  test('Remove dangling text from YJS when there is no preceding text node', async ({
+  test('Undo a text node that another collaborator typed into', async ({
+    isCollab,
     page,
   }) => {
     // Left collaborator types two paragraphs of text
@@ -268,8 +269,16 @@ test.describe('Collaboration', () => {
     await expect(undoButton).toBeEnabled();
     await undoButton.click();
 
-    // The undo also removed the text node from YJS.
-    // Check that the dangling text from right user was also removed.
+    // The undo removed the left collaborator's text node from YJS. In v1 the
+    // right collaborator's text survives in a new text node; v2 removes it.
+    const secondParagraph =
+      isCollab === 1
+        ? html`
+            <span data-lexical-text="true">Word</span>
+          `
+        : html`
+            <br data-lexical-managed-linebreak="true" />
+          `;
     await assertHTML(
       page,
       html`
@@ -277,7 +286,7 @@ test.describe('Collaboration', () => {
           <span data-lexical-text="true">Line 1</span>
         </p>
         <p class="PlaygroundEditorTheme__paragraph" dir="auto">
-          <br data-lexical-managed-linebreak="true" />
+          ${secondParagraph}
         </p>
       `,
     );
@@ -293,7 +302,7 @@ test.describe('Collaboration', () => {
           <span data-lexical-text="true">Line 1</span>
         </p>
         <p class="PlaygroundEditorTheme__paragraph" dir="auto">
-          <br data-lexical-managed-linebreak="true" />
+          ${secondParagraph}
         </p>
       `,
     );

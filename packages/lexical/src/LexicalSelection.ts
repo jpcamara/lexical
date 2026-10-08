@@ -921,6 +921,26 @@ export class RangeSelection implements BaseSelection {
    * @param text the text to insert into the Selection
    */
   insertText(text: string): void {
+    // An element caret can remain after remote text arrives in an empty
+    // paragraph. Reuse the text at that boundary instead of creating a new
+    // node and merging the existing text into it, which replaces its CRDT
+    // identity when multiple collaborators type at the same time.
+    if (this.isCollapsed() && this.anchor.type === 'element') {
+      const element = this.anchor.getNode();
+      const offset = this.anchor.offset;
+      const child = element.getChildAtIndex(
+        offset === element.getChildrenSize() ? offset - 1 : offset,
+      );
+      // An element point beside an unmergeable or special text node is an
+      // intentional boundary; preserve the existing insertion behavior there.
+      if (
+        $isTextNode(child) &&
+        child.isSimpleText() &&
+        !child.isUnmergeable()
+      ) {
+        $normalizeSelection(this);
+      }
+    }
     // For non-collapsed selections, inherit format/style from the first
     // selected text node so the replacement preserves the original styling.
     let format = this.format;

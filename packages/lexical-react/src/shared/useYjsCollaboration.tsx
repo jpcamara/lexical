@@ -20,6 +20,7 @@ import {
   type ExcludedProperties,
   initLocalState,
   type Provider,
+  registerCollabTextInsertion,
   removeCursorHighlightRule,
   renderSnapshot__EXPERIMENTAL,
   setLocalStateFocus,
@@ -132,6 +133,7 @@ export function useYjsCollaboration(
 
     // This updates the local editor state when we receive updates from other clients
     root.getSharedType().observeDeep(onYjsTreeChanges);
+    const removeTextInsertion = registerCollabTextInsertion(editor);
     const removeListener = editor.registerUpdateListener(
       ({
         prevEditorState,
@@ -158,6 +160,7 @@ export function useYjsCollaboration(
 
     return () => {
       root.getSharedType().unobserveDeep(onYjsTreeChanges);
+      removeTextInsertion();
       removeListener();
     };
   }, [binding, provider, editor, setDoc, docMap, id, syncCursorPositionsFn]);
@@ -313,6 +316,7 @@ export function useYjsCollaborationV2__EXPERIMENTAL(
 
     // This updates the local editor state when we receive updates from other clients
     root.observeDeep(onYjsTreeChanges);
+    const removeTextInsertion = registerCollabTextInsertion(editor);
     const removeListener = editor.registerUpdateListener(
       ({
         prevEditorState,
@@ -339,6 +343,7 @@ export function useYjsCollaborationV2__EXPERIMENTAL(
 
     return () => {
       root.unobserveDeep(onYjsTreeChanges);
+      removeTextInsertion();
       removeListener();
     };
   }, [binding, provider, editor, diffSnapshots]);

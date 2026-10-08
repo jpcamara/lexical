@@ -160,3 +160,4 @@ export {
   syncYjsChangesToLexicalV2__EXPERIMENTAL,
   syncYjsStateToLexicalV2__EXPERIMENTAL,
 } from './SyncEditorStates';
+export {registerCollabTextInsertion} from './TextInsertion';

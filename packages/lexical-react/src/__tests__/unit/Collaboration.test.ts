@@ -14,7 +14,9 @@ import {
   $isParagraphNode,
   $isTextNode,
   $setState,
+  CONTROLLED_TEXT_INSERTION_COMMAND,
   createState,
+  type ParagraphNode,
   UNDO_COMMAND,
 } from 'lexical';
 import {$assertNodeType} from 'lexical/src/__tests__/utils';
@@ -118,6 +120,67 @@ describe('Collaboration', () => {
         expect(client2.getHTML()).toEqual(
           '<p dir="auto"><span data-lexical-text="true">Hello metaverse</span></p>',
         );
+        expect(client1.getHTML()).toEqual(client2.getHTML());
+        expect(client1.getDocJSON()).toEqual(client2.getDocJSON());
+
+        client1.stop();
+        client2.stop();
+      });
+
+      it('Should keep the shared text node when typing at an element caret', async () => {
+        const connector = createTestConnection(useCollabV2);
+
+        const client1 = connector.createClient('1');
+        const client2 = connector.createClient('2');
+
+        client1.start(container!);
+        client2.start(container!);
+
+        await expectCorrectInitialContent(client1, client2);
+
+        await waitForReact(() => {
+          client1.update(() => {
+            $assertNodeType(
+              $getRoot().getFirstChild(),
+              $isParagraphNode,
+            ).append($createTextNode('Hello'));
+          });
+        });
+
+        const textKey = client2
+          .getEditorState()
+          .read(() =>
+            $assertNodeType(
+              $getRoot().getFirstChildOrThrow<ParagraphNode>().getFirstChild(),
+              $isTextNode,
+            ).getKey(),
+          );
+
+        // Type at an element caret before the remote text, as a peer whose
+        // caret was placed in the paragraph before that text arrived would.
+        await waitForReact(() => {
+          client2.update(() => {
+            const paragraph = $getRoot().getFirstChildOrThrow<ParagraphNode>();
+            paragraph.select(0, 0);
+            client2
+              .getEditor()
+              .dispatchCommand(CONTROLLED_TEXT_INSERTION_COMMAND, '>');
+          });
+        });
+
+        expect(client2.getHTML()).toEqual(
+          '<p dir="auto"><span data-lexical-text="true">&gt;Hello</span></p>',
+        );
+        expect(
+          client2
+            .getEditorState()
+            .read(() =>
+              $getRoot()
+                .getFirstChildOrThrow<ParagraphNode>()
+                .getFirstChildOrThrow()
+                .getKey(),
+            ),
+        ).toBe(textKey);
         expect(client1.getHTML()).toEqual(client2.getHTML());
         expect(client1.getDocJSON()).toEqual(client2.getDocJSON());
 

@@ -53,6 +53,7 @@ export function $normalizeTextNode(textNode: TextNode): void {
   let node = textNode;
 
   if (node.__text === '' && node.isSimpleText() && !node.isUnmergeable()) {
+    getActiveEditor()._normalizedNodes.add(node.__key);
     node.remove();
     return;
   }
@@ -67,6 +68,7 @@ export function $normalizeTextNode(textNode: TextNode): void {
     !previousNode.isUnmergeable()
   ) {
     if (previousNode.__text === '') {
+      getActiveEditor()._normalizedNodes.add(previousNode.__key);
       previousNode.remove();
     } else if ($canSimpleTextNodesBeMerged(previousNode, node)) {
       node = $mergeTextNodes(previousNode, node);
@@ -86,6 +88,7 @@ export function $normalizeTextNode(textNode: TextNode): void {
     !nextNode.isUnmergeable()
   ) {
     if (nextNode.__text === '') {
+      getActiveEditor()._normalizedNodes.add(nextNode.__key);
       nextNode.remove();
     } else if ($canSimpleTextNodesBeMerged(node, nextNode)) {
       node = $mergeTextNodes(node, nextNode);
